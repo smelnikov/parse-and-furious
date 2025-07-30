@@ -1,7 +1,5 @@
 {
-  "dependencies": {
-    "pnpm": "^10.13.1"
-  },
+  "name": "parse-and-furious",
   "devDependencies": {
     "@types/node": "^24.1.0",
     "typescript": "^5.8.3",
