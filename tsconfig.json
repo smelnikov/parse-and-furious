@@ -1,14 +1,18 @@
 {
   "compilerOptions": {
-    "target": "esnext",
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "lib": [
-      "ESNext"
-    ],
-    "esModuleInterop": true,
+    "erasableSyntaxOnly": true,
     "isolatedModules": true,
+    "lib": ["esnext"],
+    "module": "nodenext",
     "noEmit": true,
-    "strict": true
+    "noErrorTruncation": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "rewriteRelativeImportExtensions": true,
+    "strict": true,
+    "target": "esnext",
+    "verbatimModuleSyntax": true
   }
 }
