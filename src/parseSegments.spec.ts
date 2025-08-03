@@ -1,4 +1,4 @@
-import type { Arbitrary } from "fast-check";
+import type { Arbitrary } from 'fast-check';
 import {
   assert,
   letrec,
@@ -7,10 +7,10 @@ import {
   record,
   string,
   stringMatching,
-} from "fast-check";
-import { expect, test } from "vitest";
+} from 'fast-check';
+import { expect, test } from 'vitest';
 
-import { parseSegments } from "./parseSegments";
+import { parseSegments } from './parseSegments.ts';
 
 interface SegmentNode {
   left: SegmentTreeValue;
@@ -36,22 +36,22 @@ class SegmentTree {
     const input: string[] = [];
 
     this.visit({
-      segment: (s) => {
+      segment: s => {
         input.push(toInput(s));
       },
-      separator: (s) => {
+      separator: s => {
         input.push(s);
       },
     });
 
-    return input.join("");
+    return input.join('');
   }
 
   toSegments() {
     const segments: string[] = [];
 
     this.visit({
-      segment: (s) => {
+      segment: s => {
         segments.push(s);
       },
     });
@@ -61,7 +61,7 @@ class SegmentTree {
 
   visit(visitors: Visitors) {
     function visit(value: SegmentTreeValue) {
-      if (typeof value === "string") {
+      if (typeof value === 'string') {
         visitors.segment?.(value);
       } else {
         visit(value.left);
@@ -79,27 +79,27 @@ function segmentTree(segment: Arbitrary<string>) {
     segment: string;
     node: SegmentNode;
     tree: SegmentTreeValue;
-  }>((tie) => ({
+  }>(tie => ({
     segment,
     node: record({
-      left: tie("tree"),
+      left: tie('tree'),
       separator: stringMatching(/^[./]$/),
-      right: tie("tree"),
+      right: tie('tree'),
     }),
     tree: oneof(
-      { depthSize: "small", withCrossShrink: true },
-      tie("segment"),
-      tie("node"),
+      { depthSize: 'small', withCrossShrink: true },
+      tie('segment'),
+      tie('node'),
     ),
   }));
 
-  return tree.map((value) => new SegmentTree(value));
+  return tree.map(value => new SegmentTree(value));
 }
 
-test("static segments", () => {
+test('static segments', () => {
   assert(
-    property(segmentTree(stringMatching(/^[^./[$][^./[]*$/)), (tree) => {
-      const input = tree.toInput((segment) => segment);
+    property(segmentTree(stringMatching(/^[^./[$][^./[]*$/)), tree => {
+      const input = tree.toInput(segment => segment);
       const segments = tree.toSegments();
 
       expect(parseSegments(input)).toStrictEqual(segments);
@@ -107,10 +107,10 @@ test("static segments", () => {
   );
 });
 
-test("dynamic segments", () => {
+test('dynamic segments', () => {
   assert(
-    property(segmentTree(stringMatching(/^:[^./[]+$/)), (tree) => {
-      const input = tree.toInput((segment) => segment.replace(/^:/, "$"));
+    property(segmentTree(stringMatching(/^:[^./[]+$/)), tree => {
+      const input = tree.toInput(segment => segment.replace(/^:/, '$'));
       const segments = tree.toSegments();
 
       expect(parseSegments(input)).toStrictEqual(segments);
@@ -118,7 +118,7 @@ test("dynamic segments", () => {
   );
 });
 
-test("mixed static and dynamic segments", () => {
+test('mixed static and dynamic segments', () => {
   assert(
     property(
       segmentTree(
@@ -127,8 +127,8 @@ test("mixed static and dynamic segments", () => {
           stringMatching(/^:[^./[]+$/),
         ),
       ),
-      (tree) => {
-        const input = tree.toInput((segment) => segment.replace(/^:/, "$"));
+      tree => {
+        const input = tree.toInput(segment => segment.replace(/^:/, '$'));
         const segments = tree.toSegments();
 
         expect(parseSegments(input)).toStrictEqual(segments);
@@ -137,8 +137,8 @@ test("mixed static and dynamic segments", () => {
   );
 });
 
-test("splats", () => {
-  expect(parseSegments("$")).toStrictEqual(["*"]);
+test('splats', () => {
+  expect(parseSegments('$')).toStrictEqual(['*']);
 
   assert(
     property(
@@ -151,12 +151,12 @@ test("splats", () => {
       stringMatching(/^[./]$/),
       (tree, sep) => {
         const input = [
-          tree.toInput((segment) => segment.replace(/^:/, "$")),
+          tree.toInput(segment => segment.replace(/^:/, '$')),
           sep,
-          "$",
-        ].join("");
+          '$',
+        ].join('');
 
-        const segments = [...tree.toSegments(), "*"];
+        const segments = [...tree.toSegments(), '*'];
 
         expect(parseSegments(input)).toStrictEqual(segments);
       },
@@ -164,11 +164,11 @@ test("splats", () => {
   );
 });
 
-test("escaping in static segments", () => {
+test('escaping in static segments', () => {
   assert(
-    property(segmentTree(string({ minLength: 1 })), (tree) => {
-      const input = tree.toInput((segment) =>
-        segment.replace(/^[./[$]+|[./[]+/g, "[$&]"),
+    property(segmentTree(string({ minLength: 1 })), tree => {
+      const input = tree.toInput(segment =>
+        segment.replace(/^[./[$]+|[./[]+/g, '[$&]'),
       );
 
       const segments = tree.toSegments();
@@ -178,39 +178,11 @@ test("escaping in static segments", () => {
   );
 });
 
-test("escaping in dynamic segments", () => {
+test('escaping in dynamic segments', () => {
   assert(
-    property(
-      segmentTree(string({ minLength: 1 }).map((s) => `:${s}`)),
-      (tree) => {
-        const input = tree.toInput((segment) =>
-          segment.replace(/^:/, "$").replace(/([./[]+)/g, "[$1]"),
-        );
-
-        const segments = tree.toSegments();
-
-        expect(parseSegments(input)).toStrictEqual(segments);
-      },
-    ),
-  );
-});
-
-test("escaping the whole static segment", () => {
-  assert(
-    property(segmentTree(stringMatching(/^[^[\]]+$/)), (tree) => {
-      const input = tree.toInput((segment) => `[${segment}]`);
-      const segments = tree.toSegments();
-
-      expect(parseSegments(input)).toStrictEqual(segments);
-    }),
-  );
-});
-
-test("escaping the whole dynamic segments", () => {
-  assert(
-    property(segmentTree(stringMatching(/^:[^[\]]+$/)), (tree) => {
-      const input = tree.toInput((segment) =>
-        segment.replace(/^:(.+)$/, "$[$1]"),
+    property(segmentTree(string({ minLength: 1 }).map(s => `:${s}`)), tree => {
+      const input = tree.toInput(segment =>
+        segment.replace(/^:/, '$').replace(/([./[]+)/g, '[$1]'),
       );
 
       const segments = tree.toSegments();
@@ -220,16 +192,41 @@ test("escaping the whole dynamic segments", () => {
   );
 });
 
-test("failures with no segments at all", () => {
-  expect(() => parseSegments("")).toThrow(
+test('escaping the whole static segment', () => {
+  assert(
+    property(segmentTree(stringMatching(/^[^[\]]+$/)), tree => {
+      const input = tree.toInput(segment => `[${segment}]`);
+      const segments = tree.toSegments();
+
+      expect(parseSegments(input)).toStrictEqual(segments);
+    }),
+  );
+});
+
+test('escaping the whole dynamic segments', () => {
+  assert(
+    property(segmentTree(stringMatching(/^:[^[\]]+$/)), tree => {
+      const input = tree.toInput(segment =>
+        segment.replace(/^:(.+)$/, '$[$1]'),
+      );
+
+      const segments = tree.toSegments();
+
+      expect(parseSegments(input)).toStrictEqual(segments);
+    }),
+  );
+});
+
+test('failures with no segments at all', () => {
+  expect(() => parseSegments('')).toThrow(
     `Failed to parse segments
   ''
    ^ expected '$' or path segment`,
   );
 });
 
-test("failure when splat is not at the end", () => {
-  expect(() => parseSegments("$.invalid")).toThrowErrorMatchingInlineSnapshot(
+test('failure when splat is not at the end', () => {
+  expect(() => parseSegments('$.invalid')).toThrowErrorMatchingInlineSnapshot(
     `
     [Error: Failed to parse segments
       '$.invalid'
@@ -237,7 +234,7 @@ test("failure when splat is not at the end", () => {
   `,
   );
 
-  expect(() => parseSegments("$/invalid")).toThrowErrorMatchingInlineSnapshot(
+  expect(() => parseSegments('$/invalid')).toThrowErrorMatchingInlineSnapshot(
     `
     [Error: Failed to parse segments
       '$/invalid'
@@ -246,8 +243,8 @@ test("failure when splat is not at the end", () => {
   );
 });
 
-test("failure when escape sequence is not closed", () => {
-  expect(() => parseSegments("u[sers")).toThrowErrorMatchingInlineSnapshot(
+test('failure when escape sequence is not closed', () => {
+  expect(() => parseSegments('u[sers')).toThrowErrorMatchingInlineSnapshot(
     `
     [Error: Failed to parse segments
       'u[sers'
@@ -255,7 +252,7 @@ test("failure when escape sequence is not closed", () => {
   `,
   );
 
-  expect(() => parseSegments("u[.s.ers")).toThrowErrorMatchingInlineSnapshot(
+  expect(() => parseSegments('u[.s.ers')).toThrowErrorMatchingInlineSnapshot(
     `
     [Error: Failed to parse segments
       'u[.s.ers'
@@ -264,7 +261,7 @@ test("failure when escape sequence is not closed", () => {
   );
 });
 
-test("failure when missing an initial segment", () => {
+test('failure when missing an initial segment', () => {
   assert(
     property(
       stringMatching(/^[./]$/),
@@ -277,8 +274,8 @@ test("failure when missing an initial segment", () => {
       (sep, tree) => {
         const input = [
           sep,
-          tree.toInput((segment) => segment.replace(/^:/, "$")),
-        ].join("");
+          tree.toInput(segment => segment.replace(/^:/, '$')),
+        ].join('');
 
         expect(() => parseSegments(input)).toThrow(
           `Failed to parse segments
@@ -290,7 +287,7 @@ test("failure when missing an initial segment", () => {
   );
 });
 
-test("failure when missing a final segment", () => {
+test('failure when missing a final segment', () => {
   assert(
     property(
       segmentTree(
@@ -302,14 +299,14 @@ test("failure when missing a final segment", () => {
       stringMatching(/^[./]$/),
       (tree, sep) => {
         const input = [
-          tree.toInput((segment) => segment.replace(/^:/, "$")),
+          tree.toInput(segment => segment.replace(/^:/, '$')),
           sep,
-        ].join("");
+        ].join('');
 
         expect(() => parseSegments(input)).toThrow(
           `Failed to parse segments
   '${input}'
-   ${" ".repeat(input.length)}^ expected '$' or path segment`,
+   ${' '.repeat(input.length)}^ expected '$' or path segment`,
         );
       },
     ),
