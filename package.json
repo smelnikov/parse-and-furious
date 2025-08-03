@@ -1,5 +1,9 @@
 {
   "name": "parse-and-furious",
+  "packageManager": "pnpm@10.13.1",
+  "scripts": {
+    "test": "vitest"
+  },
   "devDependencies": {
     "@types/node": "^24.1.0",
     "fast-check": "^4.2.0",
