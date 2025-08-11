@@ -2,109 +2,80 @@ const EOL = String.fromCharCode(0);
 
 export function parseSegments(input: string): string[] {
   const segments: string[] = [];
-
   const p = createParser(input);
-
-  while (p.ch !== EOL) {
-    if (p.position === 0 && p.ch === '.' && peekChar(p) === '/') {
-      readChar(p);
-    }
-
-    if (p.ch === '/' || p.ch === '.') {
-      readChar(p);
-    } else if (p.position !== 0) {
-      throw new Error();
-    }
-
-    const segment = readSegment(p);
-
-    if (peekChar(p) === EOL && (segment === 'ts' || segment === 'tsx')) {
-      break;
-    }
-
-    segments.push(segment);
-  }
-
+  do {
+    segments.push(readSegment(p));
+  } while (p.ch !== EOL);
   return segments;
 }
 
 function createParser(input: string) {
-  const p = {
-    input,
-    position: 0,
-    readPosition: 0,
-    ch: EOL,
-  };
-
+  const p = { input, position: 0, readPosition: 0, ch: EOL };
   readChar(p);
-
   return p;
 }
 
 type Parser = ReturnType<typeof createParser>;
 
 function readChar(p: Parser) {
-  if (p.readPosition >= p.input.length) {
-    p.ch = EOL;
-  } else {
-    p.ch = p.input[p.readPosition];
-  }
-  p.position = p.readPosition;
-  p.readPosition++;
+  p.position = p.readPosition++;
+  p.ch = p.input[p.position] ?? EOL;
 }
 
-function peekChar(p: Parser) {
-  if (p.readPosition >= p.input.length) {
-    return EOL;
-  } else {
-    return p.input[p.readPosition];
-  }
-}
-
-/** `p.ch` is not "/" or "." */
+/** `p.ch` is "/" or "." */
 function readSegment(p: Parser) {
-  if (p.ch === '$') {
-    return readDynamicSegment(p);
+  const separator = ['.', '/'].includes(p.ch);
+  if (separator && p.position === 0) {
+    expectError(p, "'$' or path segment");
   }
-
-  return readStaticSegment(p);
+  if (separator) {
+    readChar(p);
+  }
+  if (p.ch === EOL) {
+    expectError(p, "'$' or path segment");
+  }
+  return p.ch === '$' //
+    ? readDynamicSegment(p)
+    : readStaticSegment(p);
 }
 
 /** p.ch === "$" */
 export function readDynamicSegment(p: Parser) {
   readChar(p);
-  if (p.ch === '.' || p.ch === EOL) {
+  if (p.ch === EOL) {
     return '*';
-  } else {
-    return `:${readStaticSegment(p)}`;
   }
+  if (['.', '/'].includes(p.ch)) {
+    expectError(p, 'dynamic segment name or splat');
+  }
+  return `:${readStaticSegment(p)}`;
 }
 
-/** `p.ch` is not  ".", "/" or "$" */
-export function readStaticSegment(p: Parser) {
+/** `p.ch` is not  ".", "/" or EOL */
+function readStaticSegment(p: Parser) {
   let value = '';
-
-  while (![EOL, '.', '/'].includes(p.ch)) {
-    if (p.ch === '[') {
-      value += readEscapedChars(p);
-    } else {
-      value += p.ch;
-    }
-
+  while (!['.', '/', EOL].includes(p.ch)) {
+    value += p.ch === '[' ? readEscapedChars(p) : p.ch;
     readChar(p);
   }
-
   return value;
 }
 
 /** `p.ch` is "[" */
-export function readEscapedChars(p: Parser) {
+function readEscapedChars(p: Parser) {
   readChar(p);
   const start = p.position;
-
-  while (![EOL, ']'].includes(p.ch)) {
+  while (![']', EOL].includes(p.ch)) {
     readChar(p);
   }
-
+  if (p.ch !== ']') {
+    expectError(p, `']'`);
+  }
   return p.input.slice(start, p.position);
+}
+
+function expectError(p: Parser, message: string): never {
+  throw new Error(`Failed to parse segments
+  '${p.input}'
+   ${' '.repeat(p.position)}^ expected ${message}`);
 }
