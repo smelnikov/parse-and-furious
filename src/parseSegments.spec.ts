@@ -5,7 +5,6 @@ import {
   oneof,
   property,
   record,
-  string,
   stringMatching,
 } from 'fast-check';
 import { expect, test } from 'vitest';
@@ -98,23 +97,29 @@ function segmentTree(segment: Arbitrary<string>) {
 
 test('static segments', () => {
   assert(
-    property(segmentTree(stringMatching(/^[^./[$][^./[]*$/)), tree => {
-      const input = tree.toInput(segment => segment);
-      const segments = tree.toSegments();
-
-      expect(parseSegments(input)).toStrictEqual(segments);
-    }),
+    property(
+      segmentTree(stringMatching(/^[^./[$][^./[]*$/)).map(tree => ({
+        input: tree.toInput(segment => segment),
+        expected: tree.toSegments(),
+      })),
+      x => {
+        expect(parseSegments(x.input)).toStrictEqual(x.expected);
+      },
+    ),
   );
 });
 
 test('dynamic segments', () => {
   assert(
-    property(segmentTree(stringMatching(/^:[^./[]+$/)), tree => {
-      const input = tree.toInput(segment => segment.replace(/^:/, '$'));
-      const segments = tree.toSegments();
-
-      expect(parseSegments(input)).toStrictEqual(segments);
-    }),
+    property(
+      segmentTree(stringMatching(/^:[^./[]+$/)).map(tree => ({
+        input: tree.toInput(segment => segment.replace(/^:/, '$')),
+        expected: tree.toSegments(),
+      })),
+      x => {
+        expect(parseSegments(x.input)).toStrictEqual(x.expected);
+      },
+    ),
   );
 });
 
@@ -126,12 +131,12 @@ test('mixed static and dynamic segments', () => {
           stringMatching(/^[^./[$:][^./[]*$/),
           stringMatching(/^:[^./[]+$/),
         ),
-      ),
-      tree => {
-        const input = tree.toInput(segment => segment.replace(/^:/, '$'));
-        const segments = tree.toSegments();
-
-        expect(parseSegments(input)).toStrictEqual(segments);
+      ).map(tree => ({
+        input: tree.toInput(segment => segment.replace(/^:/, '$')),
+        expected: tree.toSegments(),
+      })),
+      x => {
+        expect(parseSegments(x.input)).toStrictEqual(x.expected);
       },
     ),
   );
@@ -147,18 +152,17 @@ test('splats', () => {
           stringMatching(/^[^./[$:][^./[]*$/),
           stringMatching(/^:[^./[]+$/),
         ),
-      ),
-      stringMatching(/^[./]$/),
-      (tree, sep) => {
-        const input = [
-          tree.toInput(segment => segment.replace(/^:/, '$')),
-          sep,
-          '$',
-        ].join('');
+      ).chain(tree => {
+        const input = tree.toInput(segment => segment.replace(/^:/, '$'));
+        const segments = tree.toSegments();
 
-        const segments = [...tree.toSegments(), '*'];
-
-        expect(parseSegments(input)).toStrictEqual(segments);
+        return stringMatching(/^[./]$/).map(sep => ({
+          input: [input, sep, '$'].join(''),
+          expected: [...segments, '*'],
+        }));
+      }),
+      x => {
+        expect(parseSegments(x.input)).toStrictEqual(x.expected);
       },
     ),
   );
@@ -166,54 +170,63 @@ test('splats', () => {
 
 test('escaping in static segments', () => {
   assert(
-    property(segmentTree(string({ minLength: 1 })), tree => {
-      const input = tree.toInput(segment =>
-        segment.replace(/^[./[$]+|[./[]+/g, '[$&]'),
-      );
+    property(
+      segmentTree(stringMatching(/^[^/]+$/)).map(tree => ({
+        input: tree.toInput(segment =>
+          segment.replace(/^[./[$]+|[./[]+/g, '[$&]'),
+        ),
 
-      const segments = tree.toSegments();
-
-      expect(parseSegments(input)).toStrictEqual(segments);
-    }),
+        expected: tree.toSegments(),
+      })),
+      x => {
+        expect(parseSegments(x.input)).toStrictEqual(x.expected);
+      },
+    ),
   );
 });
 
 test('escaping in dynamic segments', () => {
   assert(
-    property(segmentTree(string({ minLength: 1 }).map(s => `:${s}`)), tree => {
-      const input = tree.toInput(segment =>
-        segment.replace(/^:/, '$').replace(/([./[]+)/g, '[$1]'),
-      );
+    property(
+      segmentTree(stringMatching(/^:[^/]+$/)).map(tree => ({
+        input: tree.toInput(segment =>
+          segment.replace(/^:/, '$').replace(/([./[]+)/g, '[$1]'),
+        ),
 
-      const segments = tree.toSegments();
-
-      expect(parseSegments(input)).toStrictEqual(segments);
-    }),
+        expected: tree.toSegments(),
+      })),
+      x => {
+        expect(parseSegments(x.input)).toStrictEqual(x.expected);
+      },
+    ),
   );
 });
 
 test('escaping the whole static segment', () => {
   assert(
-    property(segmentTree(stringMatching(/^[^[\]]+$/)), tree => {
-      const input = tree.toInput(segment => `[${segment}]`);
-      const segments = tree.toSegments();
-
-      expect(parseSegments(input)).toStrictEqual(segments);
-    }),
+    property(
+      segmentTree(stringMatching(/^[^/[\]]+$/)).map(tree => ({
+        input: tree.toInput(segment => `[${segment}]`),
+        expected: tree.toSegments(),
+      })),
+      x => {
+        expect(parseSegments(x.input)).toStrictEqual(x.expected);
+      },
+    ),
   );
 });
 
 test('escaping the whole dynamic segments', () => {
   assert(
-    property(segmentTree(stringMatching(/^:[^[\]]+$/)), tree => {
-      const input = tree.toInput(segment =>
-        segment.replace(/^:(.+)$/, '$[$1]'),
-      );
-
-      const segments = tree.toSegments();
-
-      expect(parseSegments(input)).toStrictEqual(segments);
-    }),
+    property(
+      segmentTree(stringMatching(/^:[^/[\]]+$/)).map(tree => ({
+        input: tree.toInput(segment => segment.replace(/^:(.+)$/, '$[$1]')),
+        expected: tree.toSegments(),
+      })),
+      x => {
+        expect(parseSegments(x.input)).toStrictEqual(x.expected);
+      },
+    ),
   );
 });
 
@@ -264,19 +277,17 @@ test('failure when escape sequence is not closed', () => {
 test('failure when missing an initial segment', () => {
   assert(
     property(
-      stringMatching(/^[./]$/),
       segmentTree(
         oneof(
           stringMatching(/^[^./[$:][^./[]*$/),
           stringMatching(/^:[^./[]+$/),
         ),
+      ).chain(tree =>
+        stringMatching(/^[./]$/).map(sep =>
+          [sep, tree.toInput(segment => segment.replace(/^:/, '$'))].join(''),
+        ),
       ),
-      (sep, tree) => {
-        const input = [
-          sep,
-          tree.toInput(segment => segment.replace(/^:/, '$')),
-        ].join('');
-
+      input => {
         expect(() => parseSegments(input)).toThrow(
           `Failed to parse segments
   '${input}'
@@ -295,14 +306,12 @@ test('failure when missing a final segment', () => {
           stringMatching(/^[^./[$:][^./[]*$/),
           stringMatching(/^:[^./[]+$/),
         ),
+      ).chain(tree =>
+        stringMatching(/^[./]$/).map(sep =>
+          [tree.toInput(segment => segment.replace(/^:/, '$')), sep].join(''),
+        ),
       ),
-      stringMatching(/^[./]$/),
-      (tree, sep) => {
-        const input = [
-          tree.toInput(segment => segment.replace(/^:/, '$')),
-          sep,
-        ].join('');
-
+      input => {
         expect(() => parseSegments(input)).toThrow(
           `Failed to parse segments
   '${input}'
