@@ -243,6 +243,32 @@ test('failure when splat is not at the end', () => {
   );
 });
 
+test('failure when escape sequence contains a slash', () => {
+  expect(() => parseSegments('u[/]ers')).toThrowErrorMatchingInlineSnapshot(
+    `
+    [Error: Failed to parse segments
+      'u[/]ers'
+         ^ expected anything except "/"]
+  `,
+  );
+
+  expect(() => parseSegments('u[/s]ers')).toThrowErrorMatchingInlineSnapshot(
+    `
+    [Error: Failed to parse segments
+      'u[/s]ers'
+         ^ expected anything except "/"]
+  `,
+  );
+
+  expect(() => parseSegments('u[s/]ers')).toThrowErrorMatchingInlineSnapshot(
+    `
+    [Error: Failed to parse segments
+      'u[s/]ers'
+          ^ expected ']']
+  `,
+  );
+});
+
 test('failure when escape sequence is not closed', () => {
   expect(() => parseSegments('u[sers')).toThrowErrorMatchingInlineSnapshot(
     `
