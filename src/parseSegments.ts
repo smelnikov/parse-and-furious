@@ -65,8 +65,11 @@ function readStaticSegment(p: Parser) {
 function readEscapedChars(p: Parser) {
   readChar(p);
   const start = p.position;
-  while (![']', EOL].includes(p.ch)) {
+  while (![']', '/', EOL].includes(p.ch)) {
     readChar(p);
+  }
+  if (p.ch === '/') {
+    expectError(p, `anything except '/'`);
   }
   if (p.ch !== ']') {
     expectError(p, `']'`);
