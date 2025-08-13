@@ -261,7 +261,7 @@ test('failure when escape sequence contains a slash', () => {
     `
     [Error: Failed to parse segments
       'u[/]ers'
-         ^ expected anything except "/"]
+         ^ expected anything except '/']
   `,
   );
 
@@ -269,7 +269,7 @@ test('failure when escape sequence contains a slash', () => {
     `
     [Error: Failed to parse segments
       'u[/s]ers'
-         ^ expected anything except "/"]
+         ^ expected anything except '/']
   `,
   );
 
@@ -277,7 +277,7 @@ test('failure when escape sequence contains a slash', () => {
     `
     [Error: Failed to parse segments
       'u[s/]ers'
-          ^ expected ']']
+          ^ expected anything except '/']
   `,
   );
 });
